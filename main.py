@@ -19,6 +19,7 @@ import re
 from bs4 import BeautifulSoup #static page scrapper
 from selenium import webdriver
 from selenium.webdriver import ActionChains
+from selenium.webdriver.common.by import By
 from selenium.webdriver.common.actions.wheel_input import ScrollOrigin
 from geopy.geocoders import Nominatim
 import plotly.express as px
@@ -143,12 +144,6 @@ print (headers)
 #url = "https://www.zapimoveis.com.br/venda/casas/rs+porto-alegre/?transacao=venda&onde=,Rio%20Grande%20do%20Sul,Porto%20Alegre,,,,,city,BR%3ERio%20Grande%20do%20Sul%3ENULL%3EPorto%20Alegre,-30.036818,-51.208989,&tipos=casa_residencial&itl_id=1000072&itl_name=zap_-_botao-cta_buscar_to_zap_resultado-pesquisa"
 url = "https://www.zapimoveis.com.br/venda/imoveis/rs+porto-alegre/?transacao=venda&onde=,Rio%20Grande%20do%20Sul,Porto%20Alegre,,,,,city,BR%3ERio%20Grande%20do%20Sul%3ENULL%3EPorto%20Alegre,-30.036818,-51.208989,&itl_id=1000072&itl_name=zap_-_botao-cta_buscar_to_zap_resultado-pesquisa"
 
-main_card = "BaseCard_card__content__pL2Vc w-full p-3"
-address_card = "l-text l-u-color-neutral-28 l-text--variant-body-small l-text--weight-regular truncate"
-price_card = "l-text l-u-color-neutral-28 l-text--variant-heading-small l-text--weight-bold undefined"
-
-
-
 user_agent = random.choice(user_agents_list)
 
 chrome_options = webdriver.ChromeOptions()
@@ -167,11 +162,18 @@ driver.implicitly_wait(delay)
 driver.get(url)
 
 last_height = driver.execute_script("return document.body.scrollHeight")
-
-max_scrolls = 40
+print (last_height)
+max_scrolls = 40 #stops from scrolling forever if something goes wrong
 current_scrolls = 1
 
 while True:
+    """
+    1) scrolling too fast all the way down to the page footer might not trigger the lazy loader.
+    2) scrolling height might be unchanged between two or three steps if next content has not yet been loaded. In some cases Last Height = New Height even if not hitting the last part of the page. You could reduce the rate
+    of scrolling (less scroll per iteration or longer wait) but that just takes forever.
+    3) BAD SOLUTION: you only stop scrolling if the footer element is being displayed (this might not work on all page types)
+
+    """
     #Scroll down
     #driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);") #only scroll partially, if you scroll too much page loading will trigger.
     
@@ -181,15 +183,27 @@ while True:
 
     delay = random.uniform(2.5,4.5) #randomize wait time
     time.sleep(delay) #wait for content to load
-    
 
+    #stop on maximum scrolls
     current_scrolls += 1
     if (current_scrolls >= max_scrolls):
         print ("Stopped Scrolling - reached max scrolling")
         break
 
+"""
+    #stops on footer displayed
+    try: #element might not exist
+        footer = driver.find_element(By.CLASS_NAME, "legal-links__listItem")
+        if (footer.is_displayed()):
+            break
+    except:
+        pass
+"""
+
+
     #new_height = driver.execute_script("return document.body.scrollHeight")
-    
+    #print(f"Current Scroll Height: {new_height}")
+
     #if new_height == last_height:
     #    print ("Stopped Scrolling - End of scroll space")
     #    break
@@ -208,16 +222,21 @@ collected_data = []
 for listing in uniqueIDs:
     
     #Link to listing
-    link = listing.get("href")
+    link = listing.get("href") #link to property
+    id = listing.get("data-id") #unique ID
 
-    #price
+    #listing price
     price = listing.find('div', {"data-cy": "rp-cardProperty-price-txt"})
-
     if price:
-        price = price.find('p')
-        price = price.get_text(strip=True) 
-        price = re.sub(r'\D', '', price)
-        price = int(price)
+        try:
+            price = price.find('p')
+            price = price.get_text(strip=True) 
+            price = re.sub(r'\D', '', price)
+            price = int(price)
+        except ValueError:
+            price = -1
+            print("Can't convert [price].")
+        
 
     #approximate address
     address = listing.find("p", {"data-cy": "rp-cardProperty-street-txt"})
@@ -227,12 +246,12 @@ for listing in uniqueIDs:
     area = listing.find("li", {"data-cy": "rp-cardProperty-propertyArea-txt"})
     area = area.get_text(strip=True) if area else "NotAvailable"    
     
-    this_listing = {"Price": price, "Area": area, "Link": link, "Address": address}
+    this_listing = {"Price": price, "Area": area, "Link": link, "Address": address, "ID": id}
     collected_data.append(this_listing)
 
 # Function to geocode an address
 def geocode_address(address):
-    geolocator = Nominatim(user_agent="address_geocoder")
+    geolocator = Nominatim(user_agent="address_geocoder") #this have maximum of 1 request per second for free users.
     location = geolocator.geocode(address)
     if location:
         return location.latitude, location.longitude
@@ -245,12 +264,14 @@ for data in collected_data:
     lat, lon = geocode_address(addr)
     data["Latitude"] = lat
     data["Longitude"] = lon
+    time.sleep(1) #Nonimatin has a maximum request of 1 per second. Maybe it can be pushed a bit more?
 
 addresses = [prop["Address"] for prop in collected_data]
 prices = [prop["Price"] for prop in collected_data]
 areas = [prop["Area"] for prop in collected_data]
 latitudes = [prop["Latitude"] for prop in collected_data]
 longitudes = [prop["Longitude"] for prop in collected_data]
+ids = [prop["ID"] for prop in collected_data]
 
 pin_sizes = [15]*len(areas)
 color_scales = (px.colors.sequential.RdBu)*len(areas)
@@ -264,11 +285,12 @@ data = {'Address': addresses,
         'Latitude': latitudes,
         'Longitude': longitudes,
         'PinSize': pin_sizes,
-        'Colors': prices
+        'Colors': prices,
+        'Id': ids
         }
 
 fig = px.scatter_map(data, lat='Latitude', lon='Longitude', text='Address',
-                     hover_name='Address', hover_data={'Price': True, 'Area': True},
+                     hover_name='Address', hover_data={'Price': True, 'Area': True, 'Id': True},
                      title="Geographically Located Properties", map_style="open-street-map", zoom=10,
                     size='PinSize',color='Price',color_continuous_scale=px.colors.sequential.RdBu,range_color=[200000,2000000])
 
