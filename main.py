@@ -33,7 +33,7 @@ import plotly.graph_objects as go
 import plotly.offline as pyo
 
 
-url = "https://www.zapimoveis.com.br/venda/imoveis/rs+porto-alegre/?transacao=venda&onde=,Rio%20Grande%20do%20Sul,Porto%20Alegre,,,,,city,BR%3ERio%20Grande%20do%20Sul%3ENULL%3EPorto%20Alegre,-30.036818,-51.208989,&itl_id=1000072&itl_name=zap_-_botao-cta_buscar_to_zap_resultado-pesquisa"
+url = "https://www.zapimoveis.com.br/venda/imoveis/rs+porto-alegre/?transacao=venda&onde=,Rio%20Grande%20do%20Sul,Porto%20Alegre,,,,,city,BR%3ERio%20Grande%20do%20Sul%3ENULL%3EPorto%20Alegre,-30.036818,-51.208989,&itl_id=1000072&itl_name=zap_-_botao-cta_buscar_to_zap_resultado-pesquisa&origem=busca-recente"
 
 
 """ 
