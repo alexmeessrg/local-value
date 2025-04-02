@@ -1,8 +1,14 @@
 """
 Local Value
 
-A tool to web-scrape and display real state value data for my region.
+A tool to web-scrape and display real state value data for my region (from the website zapimoveis.com.br)
+Author: Alex Mees (https://github.com/alexmeessrg)
+DAte: 27/03/2025
+License: MIT
+Version: 0.1
+Dependencies: Beatiful Soup, Selenium, Plotly, Geopy 
 
+At this moment you need to manually search the page and past the link below. Beware: site structure might change over time.
 """
 
 
@@ -26,6 +32,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 import plotly.offline as pyo
 
+
+url = "https://www.zapimoveis.com.br/venda/imoveis/rs+porto-alegre/?transacao=venda&onde=,Rio%20Grande%20do%20Sul,Porto%20Alegre,,,,,city,BR%3ERio%20Grande%20do%20Sul%3ENULL%3EPorto%20Alegre,-30.036818,-51.208989,&itl_id=1000072&itl_name=zap_-_botao-cta_buscar_to_zap_resultado-pesquisa"
+
+
 """ 
 Rotate user agents to reduce chance of detection
 Provided list are desktop user agents. Updated in 27/03/2025 from [www.useragents.me]
@@ -38,7 +48,7 @@ with open(user_agent_file_path, 'r') as file:
 user_agents_list = [entry['ua'] for entry in ua_data]
 
 """
-Proxy Addresses list to reduce chance of detection (where to find these proxies?)
+Proxy Addresses list to reduce chance of detection
 """
 proxies_list = [
     "47.251.122.81:8888",
@@ -106,8 +116,6 @@ proxies_list = [
 ]
 
 
-#proxy = random.choice(proxies)
-
 def get_random_headers_and_proxy():
     headers = {
         'User-Agent': random.choice(user_agents_list)
@@ -141,8 +149,7 @@ headers.update(subset_decorations) #add just some of header decorations for furt
 
 print (headers)
 
-#url = "https://www.zapimoveis.com.br/venda/casas/rs+porto-alegre/?transacao=venda&onde=,Rio%20Grande%20do%20Sul,Porto%20Alegre,,,,,city,BR%3ERio%20Grande%20do%20Sul%3ENULL%3EPorto%20Alegre,-30.036818,-51.208989,&tipos=casa_residencial&itl_id=1000072&itl_name=zap_-_botao-cta_buscar_to_zap_resultado-pesquisa"
-url = "https://www.zapimoveis.com.br/venda/imoveis/rs+porto-alegre/?transacao=venda&onde=,Rio%20Grande%20do%20Sul,Porto%20Alegre,,,,,city,BR%3ERio%20Grande%20do%20Sul%3ENULL%3EPorto%20Alegre,-30.036818,-51.208989,&itl_id=1000072&itl_name=zap_-_botao-cta_buscar_to_zap_resultado-pesquisa"
+
 
 user_agent = random.choice(user_agents_list)
 
@@ -163,7 +170,7 @@ driver.get(url)
 
 last_height = driver.execute_script("return document.body.scrollHeight")
 print (last_height)
-max_scrolls = 40 #stops from scrolling forever if something goes wrong
+max_scrolls = 20 #stops from scrolling forever if something goes wrong
 current_scrolls = 1
 
 while True:
@@ -171,11 +178,7 @@ while True:
     1) scrolling too fast all the way down to the page footer might not trigger the lazy loader.
     2) scrolling height might be unchanged between two or three steps if next content has not yet been loaded. In some cases Last Height = New Height even if not hitting the last part of the page. You could reduce the rate
     of scrolling (less scroll per iteration or longer wait) but that just takes forever.
-    3) BAD SOLUTION: you only stop scrolling if the footer element is being displayed (this might not work on all page types)
-
     """
-    #Scroll down
-    #driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);") #only scroll partially, if you scroll too much page loading will trigger.
     
     print("--- SIMULATING SCROLLING DOWN ---")
     
@@ -189,25 +192,6 @@ while True:
     if (current_scrolls >= max_scrolls):
         print ("Stopped Scrolling - reached max scrolling")
         break
-
-"""
-    #stops on footer displayed
-    try: #element might not exist
-        footer = driver.find_element(By.CLASS_NAME, "legal-links__listItem")
-        if (footer.is_displayed()):
-            break
-    except:
-        pass
-"""
-
-
-    #new_height = driver.execute_script("return document.body.scrollHeight")
-    #print(f"Current Scroll Height: {new_height}")
-
-    #if new_height == last_height:
-    #    print ("Stopped Scrolling - End of scroll space")
-    #    break
-    #last_height = new_height    
 
 soup = BeautifulSoup(driver.page_source, 'html.parser')
 
